@@ -119,45 +119,56 @@ proctype TrafficGenerator(){
 
 init {
     atomic {
-        run TrafficLight(1, 2, 4, 3, 5, 6, TL1); /* W->E  */
-        run TrafficLight(2, 3, 4, 3, 5, 6, TL2); /* E->W  */
-        run TrafficLight(3, 4, 6, 1, 2, 6, TL3); /* S->N  */
+        run TrafficLight(1, 2, 3, 4, 5, 6, TL1); /* W->E  */
+        run TrafficLight(2, 3, 3, 4, 5, 6, TL2); /* E->W  */
+        run TrafficLight(3, 4, 1, 2, 6, 0, TL3); /* S->N  */
         run TrafficLight(4, 5, 1, 2, 6, 0, TL4); /* Ped  */
-        run TrafficLight(5, 6, 6, 1, 0, 0, TL5); /* S->W  */
-        run TrafficLight(6, 1, 3, 5, 1, 0, TL6); /* E->S  */
+        run TrafficLight(5, 6, 1, 6, 0, 0, TL5); /* S->W  */
+        run TrafficLight(6, 1, 1, 3, 5, 0, TL6); /* E->S  */
 
         run TrafficGenerator()
     }
 }
 
-ltl s1 { [](!(statuses[0] && statuses[1])) } /* W->E vs E->W      */
-ltl s2 { [](!(statuses[0] && statuses[2])) } /* W->E vs S->N      */
-ltl s3 { [](!(statuses[5] && statuses[2])) } /* E->S vs S->N      */
-ltl s4 { [](!(statuses[4] && statuses[2])) } /* S->W vs S->N      */
-ltl s5 { [](!(statuses[1] && statuses[3])) } /* E->W vs Ped      */
-ltl s6 { [](!(statuses[3] && statuses[4])) } /* Ped  vs S->W     */
-ltl s7 { [](!(statuses[3] && statuses[5])) } /* Ped  vs E->S     */
-ltl s8 { [](!(statuses[4] && statuses[3] && statuses[5])) } /* ped vs S->N vs S->W */
-ltl safe_13 { [](!(statuses[0] && statuses[2])) }
-ltl safe_16 { [](!(statuses[0] && statuses[5])) }
-ltl safe_234 { [](!(statuses[1] && statuses[0] && statuses[3] && statuses[2])) }
+// safety
 
-ltl l1 { []( (queue[0]==1 && !statuses[0]) -> (<>statuses[0]) ) }
-ltl l2 { []( (queue[1]==1 && !statuses[1]) -> (<>statuses[1]) ) }
-ltl l3 { []( (queue[2]==1 && !statuses[2]) -> (<>statuses[2]) ) }
-ltl l4 { []( (queue[3]==1 && !statuses[3]) -> (<>statuses[3]) ) }
-ltl l5 { []( (queue[4]==1 && !statuses[4]) -> (<>statuses[4]) ) }
-ltl l6 { []( (queue[5]==1 && !statuses[5]) -> (<>statuses[5]) ) }
+ltl safe_13 { [](!(statuses[0] && statuses[2])) } /* WE ∩ SN  */
+ltl safe_14 { [](!(statuses[0] && statuses[3])) } /* WE ∩ PED */
+ltl safe_15 { [](!(statuses[0] && statuses[4])) } /* WE ∩ SW  */
+ltl safe_16 { [](!(statuses[0] && statuses[5])) } /* WE ∩ ES  */
 
-ltl f1 { [](<>(!statuses[0])) }
-ltl f2 { [](<>(!statuses[1])) }
-ltl f3 { [](<>(!statuses[2])) }
-ltl f4 { [](<>(!statuses[3])) }
-ltl f5 { [](<>(!statuses[4])) }
-ltl f6 { [](<>(!statuses[5])) }
+ltl safe_23 { [](!(statuses[1] && statuses[2])) } /* EW ∩ SN  */
+ltl safe_24 { [](!(statuses[1] && statuses[3])) } /* EW ∩ PED */
+ltl safe_25 { [](!(statuses[1] && statuses[4])) } /* EW ∩ SW  */
+ltl safe_26 { [](!(statuses[1] && statuses[5])) } /* EW ∩ ES  */
+
+ltl safe_36 { [](!(statuses[2] && statuses[5])) } /* SN ∩ ES  */
+ltl safe_46 { [](!(statuses[3] && statuses[5])) } /* PED ∩ ES  */
+ltl safe_56 { [](!(statuses[4] && statuses[5])) } /* SW ∩ ES  */
+
+// liveness
+
+ltl live_1  { []((queue[0]>0 && !statuses[0]) -> (<>statuses[0])) } /* WE  */
+ltl live_2  { []((queue[1]>0 && !statuses[1]) -> (<>statuses[1])) } /* EW  */
+ltl live_3  { []((queue[2]>0 && !statuses[2]) -> (<>statuses[2])) } /* SN  */
+ltl live_4  { []((queue[3]>0 && !statuses[3]) -> (<>statuses[3])) } /* PED */
+ltl live_5  { []((queue[4]>0 && !statuses[4]) -> (<>statuses[4])) } /* SW  */
+ltl live_6  { []((queue[5]>0 && !statuses[5]) -> (<>statuses[5])) } /* ES  */
+
+// fariness
+
+ltl fair_1  { []<>(!statuses[0]) } /* WE  */
+ltl fair_2  { []<>(!statuses[1]) } /* EW  */
+ltl fair_3  { []<>(!statuses[2]) } /* SN  */
+ltl fair_4  { []<>(!statuses[3]) } /* PED */
+ltl fair_5  { []<>(!statuses[4]) } /* SW  */
+ltl fair_6  { []<>(!statuses[5]) } /* ES  */
 
 
 // spin 5_task.pml
 // spin -search -a -ltl safe_13 5_task.pml
 // spin -search -bfs -ltl safe_16 5_task.pml
+// spin -search -bfs -ltl live_1 5_task.pml
+// spin -search -bfs -ltl fair_1 5_task.pml
 // spin -t 5_task.pml
+
