@@ -1,132 +1,138 @@
-chan TL1 = [1] of { byte };
-chan TL2 = [1] of { byte };
-chan TL3 = [1] of { byte };
-chan TL4 = [1] of { byte };
-chan TL5 = [1] of { byte };
-chan TL6 = [1] of { byte };
+chan LIGHT1 = [1] of { byte };
+chan LIGHT2 = [1] of { byte };
+chan LIGHT3 = [1] of { byte };
+chan LIGHT4 = [1] of { byte };
+chan LIGHT5 = [1] of { byte };
+chan LIGHT6 = [1] of { byte };
 
-byte  n = 6;                       /* прирост «ключа»            */
-byte  currentTurn = 1;             /* чей ход                    */
-byte  queue[6]     = {0,0,0,0,0,0};/* ожидание    */
-short requests[7] = {0,0,0,0,0,0,0,0};/* заявки      */
-bool  statuses[6] = {false,false,false,false,false,false};
+byte PRIORITY_VALUE = 10;
+byte MINOR_PRIORITY_VALUE = 5;
 
-proctype TrafficLight(
-        byte number,
-        nextNum,
-        fProblem,
-        sProblem,
-        tProblem,
-        kProblem;
-        chan tlChan)
+byte  n = 6;
+byte  currentTurn  = 1; 
+byte  queue[6]     = {0, 0, 0, 0, 0, 0};
+short requests[7]  = {0, 0, 0, 0, 0, 0, 0, 0};
+bool  statuses[6]  = {false, false, false, false, false, false};
+
+proctype RunTrafficLight(
+        byte currCarNumber,
+        nextTurnNum,
+        matrixConflictValue1,
+        matrixConflictValue2,
+        matrixConflictValue3,
+        matrixConflictValue4;
+        chan currLIGHT)
 {
-    short fValue = 0;
-    short sValue = 0;
-    short tValue = 0;
-    short nValue = 0;
-    short kValue = 0;
-    byte  aps   = 0;
+    /* конфликтные значения для текущего автомобиля */
+    short conflictValue1 = 0;
+    short conflictValue2 = 0;
+    short conflictValue3 = 0;
+    short conflictValue4 = 0;
+
+    /* количество машин в очереди */
+    short currCarRequestsNumber = 0;
+    byte  carsInQueue   = 0;
 
     do
-    :: currentTurn == number ->
+    :: currentTurn == currCarNumber ->
         /*  число машин, желающих проехать  */
-        tlChan ? aps;
-        requests[0]      = 0;
-        queue[number-1]  = aps;
+        currLIGHT ? carsInQueue;
+        requests[0] = 0;
+        queue[currCarNumber - 1] = carsInQueue;
 
         if
-        :: statuses[number-1] ->
-              requests[number] = 0;
-              statuses[number-1] = false;
+        :: statuses[currCarNumber-1] ->
+              requests[currCarNumber] = 0;
+              statuses[currCarNumber-1] = false;
         :: else -> skip
         fi;
 
         if
-        :: requests[number] > 0 ->
-              /* 2 конкурентов нет -> зелёный */
+        :: requests[currCarNumber] > 0 -> 
+              /* конкурентов нет -> зелёный */
               if
-              :: (requests[fProblem] == 0) &&
-                 (requests[sProblem] == 0) &&
-                 (requests[tProblem] == 0) && 
-                 (requests[kProblem] == 0) ->
-                     statuses[number-1] = true;
-                     queue[number-1]    = 0;
-                     currentTurn        = nextNum
+              :: (requests[matrixConflictValue1] == 0) &&
+                 (requests[matrixConflictValue2] == 0) &&
+                 (requests[matrixConflictValue3] == 0) && 
+                 (requests[matrixConflictValue4] == 0) ->
+                     statuses[currCarNumber - 1] = true;
+                     queue[currCarNumber - 1] = 0;
+                     currentTurn = nextTurnNum
               :: else ->
                      /* вычисляем ключи конкурентов обычным if-ом */
-                     fValue = 0;
+                     conflictValue1 = 0;
                      if
-                     :: requests[fProblem] > 0 -> fValue = requests[fProblem]
+                     :: requests[matrixConflictValue1] > 0 -> conflictValue1 = requests[matrixConflictValue1]
                      :: else -> skip
                      fi;
 
-                     sValue = 0;
+                     conflictValue2 = 0;
                      if
-                     :: requests[sProblem] > 0 -> sValue = requests[sProblem]
+                     :: requests[matrixConflictValue2] > 0 -> conflictValue2 = requests[matrixConflictValue2]
                      :: else -> skip
                      fi;
 
-                     tValue = 0;
+                     conflictValue3 = 0;
                      if
-                     :: requests[tProblem] > 0 -> tValue = requests[tProblem]
+                     :: requests[matrixConflictValue3] > 0 -> conflictValue3 = requests[matrixConflictValue3]
                      :: else -> skip
                      fi;
 
-                     kValue = 0;
+                     conflictValue4 = 0;
                      if
-                     :: requests[kProblem] > 0 -> kValue = requests[kProblem]
+                     :: requests[matrixConflictValue4] > 0 -> conflictValue4 = requests[matrixConflictValue4]
                      :: else -> skip
                      fi;
 
-                     nValue = requests[number];
+                     currCarRequestsNumber = requests[currCarNumber];
 
                      if
-                     :: (fValue > nValue) ||
-                        (sValue > nValue) ||
-                        (tValue > nValue) ||
-                        (kValue > nValue) ->
-                            requests[number]  = nValue + n;
-                            requests[fProblem] = requests[fProblem] + n;
-                            requests[sProblem] = requests[sProblem] + n;
-                            requests[tProblem] = requests[tProblem] + n;
-                            requests[kProblem] = requests[kProblem] + n
+                     :: (conflictValue1 > currCarRequestsNumber) ||
+                        (conflictValue2 > currCarRequestsNumber) ||
+                        (conflictValue3 > currCarRequestsNumber) ||
+                        (conflictValue4 > currCarRequestsNumber) ->
+                            requests[currCarNumber]  = currCarRequestsNumber + MINOR_PRIORITY_VALUE;
+                            requests[matrixConflictValue1] = requests[matrixConflictValue1] + MINOR_PRIORITY_VALUE;
+                            requests[matrixConflictValue2] = requests[matrixConflictValue2] + MINOR_PRIORITY_VALUE;
+                            requests[matrixConflictValue3] = requests[matrixConflictValue3] + MINOR_PRIORITY_VALUE;
+                            requests[matrixConflictValue4] = requests[matrixConflictValue4] + MINOR_PRIORITY_VALUE;
                      :: else ->
-                            statuses[number-1] = true;
-                            queue[number-1]    = 0;
-                            requests[number]   = requests[number] + number
+                            statuses[currCarNumber - 1] = true;
+                            queue[currCarNumber - 1] = 0;
+                            requests[currCarNumber] = currCarRequestsNumber + PRIORITY_VALUE;
                      fi;
 
-                     currentTurn = nextNum;
+                     currentTurn = nextTurnNum;
                      requests[0] = 0
               fi
         /* Если заявки ещё не было, но машины есть -> ставим заявку */
         :: else ->
               if
-              :: queue[number-1] > 0 ->
-                     requests[number] = number
+              :: queue[currCarNumber - 1] > 0 ->
+                     requests[currCarNumber] = currCarNumber
               :: else -> skip
               fi;
-              currentTurn = nextNum
+              currentTurn = nextTurnNum
         fi
     od
 }
 
-proctype TrafficGenerator(){
+proctype GenerateLights(){
     do
-    :: TL1!1 :: TL2!1 :: TL3!1 :: TL4!1 :: TL5!1 :: TL6!1
+    :: LIGHT1!1 :: LIGHT2!1 :: LIGHT3!1 :: LIGHT4!1 :: LIGHT5!1 :: LIGHT6!1
     od
 }
 
 init {
     atomic {
-        run TrafficLight(1, 2, 3, 4, 5, 6, TL1); /* W->E  */
-        run TrafficLight(2, 3, 3, 4, 5, 6, TL2); /* E->W  */
-        run TrafficLight(3, 4, 1, 2, 6, 0, TL3); /* S->N  */
-        run TrafficLight(4, 5, 1, 2, 6, 0, TL4); /* Ped  */
-        run TrafficLight(5, 6, 1, 6, 0, 0, TL5); /* S->W  */
-        run TrafficLight(6, 1, 1, 3, 5, 0, TL6); /* E->S  */
+        run RunTrafficLight(1, 2, 3, 4, 5, 6, LIGHT1); /* W->E  */
+        run RunTrafficLight(2, 3, 3, 4, 5, 6, LIGHT2); /* E->W  */
+        run RunTrafficLight(3, 4, 1, 2, 6, 0, LIGHT3); /* S->N  */
+        run RunTrafficLight(4, 5, 1, 2, 6, 0, LIGHT4); /* Ped  */
+        run RunTrafficLight(5, 6, 1, 6, 0, 0, LIGHT5); /* S->W  */
+        run RunTrafficLight(6, 1, 1, 3, 5, 4, LIGHT6); /* E->S  */
 
-        run TrafficGenerator()
+        run GenerateLights()
     }
 }
 
@@ -172,3 +178,6 @@ ltl fair_6  { []<>(!statuses[5]) } /* ES  */
 // spin -search -bfs -ltl fair_1 5_task.pml
 // spin -t 5_task.pml
 
+// spin -search -a -ltl safe_25 5_task.pml
+// spin -search -a -ltl fair_1 5_task.pml
+// spin -search -a -ltl live_1 5_task.pml
